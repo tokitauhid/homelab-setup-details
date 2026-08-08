@@ -1,0 +1,21 @@
+services:
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    container_name: homarr
+    restart: unless-stopped
+    ports:
+      - "${HOMARR_PORT:-7575}:7575/tcp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+      - SECRET_ENCRYPTION_KEY=${HOMARR_SECRET_KEY:-generate_a_random_32_byte_secret_key}
+    volumes:
+      - ${HOMARR_CONFIG_DIR:-./configs}:/app/data/configs
+      - ${HOMARR_ICONS_DIR:-./icons}:/app/public/icons
+      - ${HOMARR_DATA_DIR:-./data}:/data
+    networks:
+      - homarr_network
+
+networks:
+  homarr_network:
+    name: ${HOMARR_NETWORK_NAME:-homarr_network}
+    driver: bridge

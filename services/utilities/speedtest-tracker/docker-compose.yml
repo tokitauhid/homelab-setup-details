@@ -1,0 +1,27 @@
+services:
+  speedtest-tracker:
+    image: lscr.io/linuxserver/speedtest-tracker:latest
+    container_name: speedtest-tracker
+    restart: unless-stopped
+    ports:
+      - "${SPEEDTEST_HTTPS_PORT:-8444}:443/tcp"
+      - "${SPEEDTEST_HTTP_PORT:-8084}:80/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - DB_CONNECTION=sqlite
+      - SPEEDTEST_SCHEDULE=${SPEEDTEST_SCHEDULE:-0 * * * *}
+      - APP_KEY=${SPEEDTEST_APP_KEY:-}
+      - APP_URL=${SPEEDTEST_APP_URL:-http://localhost:8084}
+      - DISPLAY_TIMEZONE=${TZ:-Asia/Dhaka}
+      - APP_TIMEZONE=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${SPEEDTEST_CONFIG_DIR:-./config}:/config
+    networks:
+      - speedtest_network
+
+networks:
+  speedtest_network:
+    name: ${SPEEDTEST_NETWORK_NAME:-speedtest_network}
+    driver: bridge

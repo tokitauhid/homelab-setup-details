@@ -1,0 +1,28 @@
+services:
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    ports:
+      - "${JELLYFIN_PORT:-8096}:8096/tcp"
+      - "${JELLYFIN_HTTPS_PORT:-8920}:8920/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - JELLYFIN_PublishedServerUrl=${JELLYFIN_PUBLISHED_URL:-}
+    volumes:
+      - ${JELLYFIN_CONFIG_DIR:-./config}:/config
+      - ${MOVIES_DIR:-/data/movies}:/data/movies
+      - ${TV_DIR:-/data/tvshows}:/data/tvshows
+      - ${MUSIC_DIR:-/data/music}:/data/music
+    devices:
+      # Optional: Hardware acceleration for Intel/AMD GPU VAAPI
+      - /dev/dri:/dev/dri
+    networks:
+      - jellyfin_network
+
+networks:
+  jellyfin_network:
+    name: ${JELLYFIN_NETWORK_NAME:-jellyfin_network}
+    driver: bridge

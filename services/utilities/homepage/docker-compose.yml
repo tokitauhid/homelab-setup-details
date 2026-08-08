@@ -1,0 +1,22 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "${HOMEPAGE_PORT:-3000}:3000/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - HOMEPAGE_ALLOWED_HOSTS="*"
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${HOMEPAGE_CONFIG_DIR:-./config}:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - homepage_network
+
+networks:
+  homepage_network:
+    name: ${HOMEPAGE_NETWORK_NAME:-homepage_network}
+    driver: bridge

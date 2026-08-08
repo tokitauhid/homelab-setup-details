@@ -1,0 +1,517 @@
+# ==============================================================================
+# Arch Homelab: Master Docker Compose Specification
+# ==============================================================================
+# All 27 services organized in a unified, sanitized compose specification.
+# Each service can also be deployed independently from its folder in ./services/
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose --env-file .env up -d
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # Networking & Remote Access
+  # ----------------------------------------------------------------------------
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "${NPM_HTTP_PORT:-80}:80"
+      - "${NPM_ADMIN_PORT:-81}:81"
+      - "${NPM_HTTPS_PORT:-443}:443"
+    environment:
+      TZ: ${TZ:-Asia/Dhaka}
+      DISABLE_IPV6: "false"
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/npm/data:/data
+      - ${DOCKER_ROOT:-~/docker}/npm/letsencrypt:/etc/letsencrypt
+    networks:
+      - homelab_network
+
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "${PIHOLE_WEB_PORT:-8053}:80/tcp"
+      - "${PIHOLE_SSL_PORT:-4443}:443/tcp"
+    environment:
+      TZ: ${TZ:-Asia/Dhaka}
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD:-}
+      WEBPASSWORD: ${PIHOLE_PASSWORD:-}
+      DNSMASQ_USER: pihole
+      FTL_CMD: no-daemon
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/pihole/etc-pihole:/etc/pihole
+      - ${DOCKER_ROOT:-~/docker}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    networks:
+      - homelab_network
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY:-}
+      - TS_EXTRA_ARGS=${TAILSCALE_EXTRA_ARGS:---advertise-exit-node --advertise-routes=192.168.0.0/24}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_ACCEPT_DNS=true
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/tailscale/state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks:
+      - homelab_network
+
+  # ----------------------------------------------------------------------------
+  # Media & Streaming
+  # ----------------------------------------------------------------------------
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    ports:
+      - "${JELLYFIN_PORT:-8096}:8096/tcp"
+      - "${JELLYFIN_HTTPS_PORT:-8920}:8920/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/jellyfin/config:/config
+      - ${DATA_ROOT:-/data}/media/movies:/data/movies
+      - ${DATA_ROOT:-/data}/media/tvshows:/data/tvshows
+      - ${DATA_ROOT:-/data}/media/music:/data/music
+    devices:
+      - /dev/dri:/dev/dri
+    networks:
+      - homelab_network
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    ports:
+      - "${QBIT_TORRENT_PORT:-6881}:6881/tcp"
+      - "${QBIT_TORRENT_PORT:-6881}:6881/udp"
+      - "${QBIT_WEBUI_PORT:-8082}:8080/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - WEBUI_PORT=8080
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:qbittorrent
+      - TP_THEME=${TP_THEME:-catppuccin-mocha}
+      - TP_COMMUNITY_THEME=true
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/qbittorrent/config:/config
+      - ${DOWNLOADS_DIR:-~/Downloads}:/downloads
+    networks:
+      - homelab_network
+
+  qui:
+    image: ghcr.io/autobrr/qui:latest
+    container_name: qui
+    restart: unless-stopped
+    ports:
+      - "${QUI_PORT:-8083}:7476/tcp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/qui/config:/config
+      - ${DOCKER_ROOT:-~/docker}/qui/data:/data
+    networks:
+      - homelab_network
+
+  # ----------------------------------------------------------------------------
+  # Arr Media Automation Pipeline
+  # ----------------------------------------------------------------------------
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    ports:
+      - "${RADARR_PORT:-7878}:7878/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/radarr/config:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - homelab_network
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    ports:
+      - "${SONARR_PORT:-8989}:8989/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/sonarr/config:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - homelab_network
+
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    restart: unless-stopped
+    ports:
+      - "${LIDARR_PORT:-8686}:8686/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/lidarr/config:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - homelab_network
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    ports:
+      - "${PROWLARR_PORT:-9696}:9696/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/prowlarr/config:/config
+    networks:
+      - homelab_network
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    ports:
+      - "${FLARESOLVERR_PORT:-8191}:8191/tcp"
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ:-Asia/Dhaka}
+    networks:
+      - homelab_network
+
+  qbittorrent-arr:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent-arr
+    restart: unless-stopped
+    ports:
+      - "${QBIT_ARR_PORT:-6882}:6882/tcp"
+      - "${QBIT_ARR_PORT:-6882}:6882/udp"
+      - "${QBIT_ARR_WEBUI_PORT:-8091}:8080/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - WEBUI_PORT=8080
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:qbittorrent
+      - TP_THEME=${TP_THEME:-catppuccin-mocha}
+      - TP_COMMUNITY_THEME=true
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/qbt-arr/config:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - homelab_network
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
+    restart: unless-stopped
+    ports:
+      - "${SEERR_PORT:-5055}:5055/tcp"
+    environment:
+      - LOG_LEVEL=info
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/seerr/config:/app/config
+    networks:
+      - homelab_network
+
+  ombi:
+    image: lscr.io/linuxserver/ombi:latest
+    container_name: ombi
+    restart: unless-stopped
+    ports:
+      - "${OMBI_PORT:-3579}:3579/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/ombi/config:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - homelab_network
+
+  # ----------------------------------------------------------------------------
+  # AI, Search & Knowledge Suite
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/searxng/redis:/data
+    networks:
+      - homelab_network
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "${SEARXNG_PORT:-8081}:8080/tcp"
+    environment:
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8081/}
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET_KEY:-generate_a_random_32_byte_secret_key}
+      - SEARXNG_REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/searxng/config:/etc/searxng
+    depends_on:
+      - redis
+    networks:
+      - homelab_network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434/tcp"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/ollama/data:/root/.ollama
+    networks:
+      - homelab_network
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-3001}:8080/tcp"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-generate_a_random_32_byte_secret_key}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/open-webui/data:/app/backend/data
+    depends_on:
+      - ollama
+    networks:
+      - homelab_network
+
+  obsidian-livesync:
+    image: couchdb:3
+    container_name: obsidian-livesync
+    restart: unless-stopped
+    ports:
+      - "${COUCHDB_PORT:-5984}:5984/tcp"
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-changethispassword}
+      - ERL_FLAGS=-setcookie couchdb_secret_cookie
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/obsidian-livesync/data:/opt/couchdb/data
+      - ${DOCKER_ROOT:-~/docker}/obsidian-livesync/config:/opt/couchdb/etc/local.d
+    networks:
+      - homelab_network
+
+  # ----------------------------------------------------------------------------
+  # Utilities & Dashboards
+  # ----------------------------------------------------------------------------
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "${HOMEPAGE_PORT:-3000}:3000/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - HOMEPAGE_ALLOWED_HOSTS="*"
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/homepage/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - homelab_network
+
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    container_name: homarr
+    restart: unless-stopped
+    ports:
+      - "${HOMARR_PORT:-7575}:7575/tcp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+      - SECRET_ENCRYPTION_KEY=${HOMARR_SECRET_KEY:-generate_a_random_32_byte_secret_key}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/homarr/configs:/app/data/configs
+      - ${DOCKER_ROOT:-~/docker}/homarr/icons:/app/public/icons
+      - ${DOCKER_ROOT:-~/docker}/homarr/data:/data
+    networks:
+      - homelab_network
+
+  nextexplorer:
+    image: nxzai/explorer:latest
+    container_name: nextexplorer
+    restart: unless-stopped
+    ports:
+      - "${NEXTEXPLORER_PORT:-8085}:3000/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/nextexplorer/config:/config
+      - ${NEXTEXPLORER_BROWSE_ROOT:-/home}:/mnt/Home
+      - ${DOCKER_ROOT:-~/docker}/nextexplorer/cache:/cache
+    networks:
+      - homelab_network
+
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    restart: unless-stopped
+    ports:
+      - "${SYNCTHING_WEB_PORT:-8384}:8384/tcp"
+      - "${SYNCTHING_LISTEN_PORT:-22000}:22000/tcp"
+      - "${SYNCTHING_LISTEN_PORT:-22000}:22000/udp"
+      - "${SYNCTHING_DISCOVERY_PORT:-21027}:21027/udp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/syncthing/config:/config
+      - ${DOCKER_ROOT:-~/docker}/syncthing/data:/data/sync
+    networks:
+      - homelab_network
+
+  firefox:
+    image: lscr.io/linuxserver/firefox:latest
+    container_name: firefox
+    restart: unless-stopped
+    ports:
+      - "${FIREFOX_HTTP_PORT:-3002}:3000/tcp"
+      - "${FIREFOX_HTTPS_PORT:-3003}:3001/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - START_DOCKER=true
+      - NO_GAMEPAD=true
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/firefox/config:/config
+    shm_size: 1gb
+    networks:
+      - homelab_network
+
+  speedtest-tracker:
+    image: lscr.io/linuxserver/speedtest-tracker:latest
+    container_name: speedtest-tracker
+    restart: unless-stopped
+    ports:
+      - "${SPEEDTEST_HTTPS_PORT:-8444}:443/tcp"
+      - "${SPEEDTEST_HTTP_PORT:-8084}:80/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - DB_CONNECTION=sqlite
+      - SPEEDTEST_SCHEDULE=${SPEEDTEST_SCHEDULE:-0 * * * *}
+      - APP_KEY=${SPEEDTEST_APP_KEY:-}
+      - APP_URL=${SPEEDTEST_APP_URL:-http://localhost:8084}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/speedtest-tracker/config:/config
+    networks:
+      - homelab_network
+
+  iperf3-server:
+    image: networkstatic/iperf3:latest
+    container_name: iperf3-server
+    restart: unless-stopped
+    command: -s
+    ports:
+      - "${IPERF_PORT:-5201}:5201/tcp"
+      - "${IPERF_PORT:-5201}:5201/udp"
+    networks:
+      - homelab_network
+
+  # ----------------------------------------------------------------------------
+  # Gaming & Emulation
+  # ----------------------------------------------------------------------------
+  crafty:
+    image: registry.gitlab.com/crafty-controller/crafty-4:latest
+    container_name: crafty
+    restart: unless-stopped
+    ports:
+      - "${CRAFTY_HTTPS_PORT:-8443}:8443/tcp"
+      - "${CRAFTY_MC_PORT:-25565}:25565/tcp"
+      - "${CRAFTY_BEDROCK_PORT:-19132}:19132/udp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/crafty/config:/crafty/app/config
+      - ${DOCKER_ROOT:-~/docker}/crafty/servers:/crafty/servers
+      - ${DOCKER_ROOT:-~/docker}/crafty/backups:/crafty/backups
+      - ${DOCKER_ROOT:-~/docker}/crafty/logs:/crafty/logs
+      - ${DOCKER_ROOT:-~/docker}/crafty/import:/crafty/import
+    networks:
+      - homelab_network
+
+  minecraft-playit:
+    image: ghcr.io/playit-cloud/playit-agent:1.0
+    container_name: minecraft-playit
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - SECRET_KEY=${PLAYIT_SECRET_KEY:-}
+
+  redroid:
+    image: redroid/redroid:latest
+    container_name: redroid
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "${REDROID_ADB_PORT:-5555}:5555/tcp"
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/redroid/data:/data
+    networks:
+      - homelab_network
+
+networks:
+  homelab_network:
+    name: ${HOMELAB_NETWORK_NAME:-homelab_network}
+    driver: bridge

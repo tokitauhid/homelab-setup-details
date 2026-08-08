@@ -1,0 +1,23 @@
+services:
+  nextexplorer:
+    image: nxzai/explorer:latest
+    container_name: nextexplorer
+    restart: unless-stopped
+    ports:
+      - "${NEXTEXPLORER_PORT:-8085}:3000/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - NODE_ENV=production
+    volumes:
+      - ${NEXTEXPLORER_CONFIG_DIR:-./config}:/config
+      - ${NEXTEXPLORER_BROWSE_ROOT:-/home/tokit}:/mnt/Home
+      - ${NEXTEXPLORER_CACHE_DIR:-./cache}:/cache
+    networks:
+      - nextexplorer_network
+
+networks:
+  nextexplorer_network:
+    name: ${NEXTEXPLORER_NETWORK_NAME:-nextexplorer_network}
+    driver: bridge

@@ -1,0 +1,17 @@
+services:
+  redroid:
+    image: redroid/redroid:latest
+    container_name: redroid
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "${REDROID_ADB_PORT:-5555}:5555/tcp"
+    volumes:
+      - ${REDROID_DATA_DIR:-./data}:/data
+    networks:
+      - redroid_network
+
+networks:
+  redroid_network:
+    name: ${REDROID_NETWORK_NAME:-redroid_network}
+    driver: bridge

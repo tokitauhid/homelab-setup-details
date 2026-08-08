@@ -1,0 +1,24 @@
+services:
+  firefox:
+    image: lscr.io/linuxserver/firefox:latest
+    container_name: firefox
+    restart: unless-stopped
+    ports:
+      - "${FIREFOX_HTTP_PORT:-3002}:3000/tcp"
+      - "${FIREFOX_HTTPS_PORT:-3003}:3001/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - START_DOCKER=true
+      - NO_GAMEPAD=true
+    volumes:
+      - ${FIREFOX_CONFIG_DIR:-./config}:/config
+    shm_size: ${FIREFOX_SHM_SIZE:-1gb}
+    networks:
+      - firefox_network
+
+networks:
+  firefox_network:
+    name: ${FIREFOX_NETWORK_NAME:-firefox_network}
+    driver: bridge

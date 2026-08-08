@@ -1,0 +1,19 @@
+services:
+  qui:
+    image: ghcr.io/autobrr/qui:latest
+    container_name: qui
+    restart: unless-stopped
+    ports:
+      - "${QUI_PORT:-8083}:7476/tcp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${QUI_CONFIG_DIR:-./config}:/config
+      - ${QUI_DATA_DIR:-./data}:/data
+    networks:
+      - qui_network
+
+networks:
+  qui_network:
+    name: ${QUI_NETWORK_NAME:-qui_network}
+    driver: bridge

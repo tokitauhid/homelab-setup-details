@@ -1,660 +1,266 @@
-# The Arch Homelab: Unified Docker Architecture
+# Arch Homelab: Modular Docker Architecture
 
 ![OS: Arch Linux](https://img.shields.io/badge/OS-Arch%20Linux-1793d1.svg?logo=arch-linux&logoColor=white)
-![Hardware: CPU Only](https://img.shields.io/badge/Compute-CPU%20Only%20(Ryzen%203600)-blue)
-![Architecture: Docker](https://img.shields.io/badge/Architecture-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)
-![Management: Portainer](https://img.shields.io/badge/Management-Portainer-13BEF9.svg?logo=portainer&logoColor=white)
-![Status: Active](https://img.shields.io/badge/Status-Production-green)
+![Compute: AMD Ryzen 3600](https://img.shields.io/badge/Compute-AMD%20Ryzen%205%203600-ED1C24.svg?logo=amd&logoColor=white)
+![Architecture: Modular Docker](https://img.shields.io/badge/Architecture-Modular%20Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)
+![Security: Tailscale + Cloudflare](https://img.shields.io/badge/Security-Zero%20Trust%20Mesh-black.svg?logo=tailscale&logoColor=white)
+![Status: Production Ready](https://img.shields.io/badge/Status-Sanitized%20%26%20Modular-green)
 
-Self-hosted, CPU-optimized home server environment on vanilla Arch Linux. All 18 services run as independent Docker Compose stacks managed through **Portainer**, rooted under `/home/${USER}/docker/` for clean ownership, predictable backups, and secure remote access via Tailscale and Cloudflare Tunnel.
+A modular, CPU-optimized, fully self-hosted home server architecture built on vanilla Arch Linux. Designed for clean service decoupling, zero-copy atomic hardlinks, predictable backup workflows, and secure remote access via Tailscale and Cloudflare Zero Trust Tunnels.
 
 ---
 
 ## System Specifications
 
-| Component  | Details                                          |
-| ---------- | ------------------------------------------------ |
-| **OS**     | Vanilla Arch Linux (rolling release)             |
-| **CPU**    | AMD Ryzen 5 3600 — 6 cores / 12 threads         |
-| **RAM**    | 16 GB DDR4                                       |
-| **GPU**    | NVIDIA GT 710 — display output only, no passthrough, no inference |
-| **Network**| LAN `192.168.0.0/24`                             |
-| **Root**   | `/home/${USER}/docker/`                          |
-
-> [!IMPORTANT]
-> Every stack expects a `.env` file alongside its `docker-compose.yml`. At minimum, define `TZ`, and any service-specific auth tokens before first deployment. Sensitive tokens should **never** be committed to version control.
+| Component | Specification | Purpose / Role |
+| :--- | :--- | :--- |
+| **Operating System** | Vanilla Arch Linux (Rolling Kernel) | Base OS host with minimal overhead |
+| **CPU** | AMD Ryzen 5 3600 (6 Cores / 12 Threads) | High-performance CPU compute & transcode |
+| **RAM** | 16 GB DDR4 3200MHz | Shared across containers & local LLM cache |
+| **GPU** | NVIDIA GT 710 | Host display console |
+| **Storage Architecture** | Atomic Hardlink Hierarchy (`/data`) | Instant, zero-copy torrent to media promotion |
+| **Container Engine** | Docker Engine + Docker Compose v2 | Modular container execution |
 
 ---
 
-## Network Architecture
+## Network & Ingress Architecture
 
 ```
-┌─────────── Internet ───────────┐
-│                                │
-│  Cloudflare Tunnel (egress)    │
-│        ↕                       │
-│  Nginx Proxy Manager           │
-│   :80 / :81 / :443            │
-│        ↕                       │
-├────── LAN 192.168.0.0/24 ─────┤
-│                                │
-│  Pi-hole (:53, :8053)          │◄── DNS for all LAN clients
-│                                │
-│  ┌── Media ──────────────────┐ │
-│  │ Jellyfin        :8096     │ │
-│  │ qBittorrent     :8082     │ │
-│  │ QUI             :8083     │ │
-│  └───────────────────────────┘ │
-│                                │
-│  ┌── AI & Knowledge ────────┐  │
-│  │ Ollama          :11434   │  │
-│  │ Open WebUI      :3001    │  │
-│  │ SearXNG         :8081    │  │
-│  │ Obsidian Sync   :5984    │  │
-│  └──────────────────────────┘  │
-│                                │
-│  ┌── Utility ───────────────┐  │
-│  │ Homepage        :3000    │  │
-│  │ NextExplorer    :8085    │  │
-│  │ Syncthing       :8384    │  │
-│  │ Firefox         :3002    │  │
-│  │ Speedtest       :8084    │  │
-│  └──────────────────────────┘  │
-│                                │
-│  ┌── Gaming & Emulation ────┐  │
-│  │ Crafty          :8443    │  │
-│  │ Redroid         :5555    │  │
-│  └──────────────────────────┘  │
-│                                │
-│  Tailscale (mesh VPN) ─────────┼──►  Remote access
-└────────────────────────────────┘
+                    ┌───────────────── Internet ─────────────────┐
+                    │                                             │
+                    ▼                                             ▼
+        ┌───────────────────────┐                     ┌───────────────────────┐
+        │ Cloudflare Tunnel     │                     │ Tailscale Mesh VPN    │
+        │ (Zero-Trust Ingress)  │                     │ (Subnet Router)       │
+        └───────────┬───────────┘                     └───────────┬───────────┘
+                    │                                             │
+                    └──────────────────────┬──────────────────────┘
+                                           │
+                                           ▼
+                    ┌─────────────────────────────────────────────┐
+                    │      Nginx Proxy Manager (:80, :443, :81)    │
+                    └──────────────────────┬──────────────────────┘
+                                           │
+ ─────────────── LAN Subnet 192.168.0.0/24 ┼ ──────────────────────────────────────────
+                                           │
+   ┌───────────────────────────────────────┴───────────────────────────────────────┐
+   │                                                                               │
+   ├── [DNS & Security] ─────► Pi-hole (:53, :8053) [Local DNS Sinkhole]          │
+   │                                                                               │
+   ├── [Media Suite] ────────► Jellyfin (:8096) ── qBittorrent (:8082) ── QUI (:8083)
+   │                                                                               │
+   ├── [Arr Pipeline] ───────► Radarr (:7878) ── Sonarr (:8989) ── Lidarr (:8686) │
+   │                           Prowlarr (:9696) ── FlareSolverr (:8191)            │
+   │                           qBit-Arr (:8091) ── Seerr (:5055) ── Ombi (:3579)   │
+   │                                                                               │
+   ├── [AI & Knowledge] ─────► Ollama (:11434) ── Open WebUI (:3001)               │
+   │                           SearXNG (:8081) ── Obsidian LiveSync (:5984)        │
+   │                                                                               │
+   ├── [Dashboards & Utils] ─► Homepage (:3000) ── Homarr (:7575)                  │
+   │                           NextExplorer (:8085) ── Syncthing (:8384)           │
+   │                           Firefox Web (:3002) ── Speedtest (:8084)            │
+   │                           iPerf3 (:5201)                                      │
+   │                                                                               │
+   └── [Gaming] ─────────────► Crafty Controller (:8443) ── Redroid (:5555)        │
+                                                                                   │
+ ──────────────────────────────────────────────────────────────────────────────────
 ```
 
 ---
 
-## Service and Port Map
+## Directory Organization
 
-All web interfaces use dedicated, non-overlapping ports. Ports marked with `*` have been shifted from upstream defaults to avoid conflicts.
+The homelab is decomposed into categorized, self-contained service stacks under `services/`. Each directory contains its own `docker-compose.yml`, `.env.example`, and dedicated documentation:
 
-| Category    | Service             | Description                              | Port(s)              | Default Port |
-| ----------- | ------------------- | ---------------------------------------- | --------------------- | ------------ |
-| Networking  | Nginx Proxy Manager | Reverse proxy and SSL termination        | `80`, `81`, `443`     | —            |
-| Networking  | Pi-hole             | Network-wide ad blocking and local DNS   | `53`, `8053`*         | `80`         |
-| Networking  | Tailscale           | Secure mesh VPN for remote access        | `host network`        | —            |
-| Networking  | Cloudflare Tunnel   | Outbound tunnel to Cloudflare proxy      | `none`                | —            |
-| Media       | Jellyfin            | Media server — movies, TV, music (CPU transcode) | `8096`         | `8096`       |
-| Media       | qBittorrent         | Torrent client for Linux ISOs            | `8082`*, `6881`       | `8080`       |
-| Media       | QUI                 | Modern web frontend for qBittorrent      | `8083`*               | `80`         |
-| AI / Data   | Ollama              | Local LLM inference API                  | `11434`               | `11434`      |
-| AI / Data   | Open WebUI          | ChatGPT-style interface for Ollama       | `3001`*               | `8080`       |
-| AI / Data   | Obsidian LiveSync   | CouchDB backend for Obsidian note sync   | `5984`                | `5984`       |
-| AI / Data   | SearXNG             | Privacy-respecting metasearch engine     | `8081`*               | `8080`       |
-| Utility     | Homepage            | Service dashboard and link aggregator    | `3000`                | `3000`       |
-| Utility     | NextExplorer        | Web-based file manager for server files  | `8085`*               | `80`         |
-| Utility     | Syncthing           | Continuous file sync across devices      | `8384`, `22000`       | `8384`       |
-| Utility     | Firefox             | Containerized browser for remote use     | `3002`*               | `3000`       |
-| Utility     | Speedtest Tracker   | Automated ISP speed monitoring           | `8084`*               | `80`         |
-| Gaming      | Crafty Controller   | Minecraft server management              | `8443`, `25565`       | `8443`       |
-| Gaming      | Redroid             | Android-in-a-container emulator          | `5555`                | `5555`       |
+```plaintext
+homelab-setup-details/
+├── .env.example                                  # Master environment configuration template
+├── .gitignore                                    # Secret and runtime file exclusions
+├── docker-compose.yml                            # Unified master compose specification
+├── README.md                                     # Main homelab guide (this file)
+│
+└── services/
+    ├── networking/
+    │   ├── nginx-proxy-manager/                  # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/nginx-proxy-manager/README.md)
+    │   ├── pihole/                               # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/pihole/README.md)
+    │   ├── tailscale/                            # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/tailscale/README.md)
+    │   └── cloudflare-tunnel/                    # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/cloudflare-tunnel/README.md)
+    │
+    ├── media/
+    │   ├── jellyfin/                             # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/jellyfin/README.md)
+    │   ├── qbittorrent/                          # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qbittorrent/README.md)
+    │   ├── qui/                                  # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qui/README.md)
+    │   └── arr-stack/                            # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md)
+    │
+    ├── ai-knowledge/
+    │   ├── searxng/                              # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/ai-knowledge/searxng/README.md)
+    │   ├── ollama-webui/                         # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/ai-knowledge/ollama-webui/README.md)
+    │   └── obsidian-livesync/                    # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/ai-knowledge/obsidian-livesync/README.md)
+    │
+    ├── utilities/
+    │   ├── homepage/                             # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/homepage/README.md)
+    │   ├── homarr/                               # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/homarr/README.md)
+    │   ├── nextexplorer/                         # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/nextexplorer/README.md)
+    │   ├── syncthing/                            # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/syncthing/README.md)
+    │   ├── firefox/                              # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/firefox/README.md)
+    │   ├── speedtest-tracker/                    # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/speedtest-tracker/README.md)
+    │   └── iperf3/                               # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/iperf3/README.md)
+    │
+    └── gaming/
+        ├── crafty-minecraft/                     # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/gaming/crafty-minecraft/README.md)
+        └── redroid/                              # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/gaming/redroid/README.md)
+```
 
 ---
 
-## Deployment Guide
+## Service & Port Map
 
-### Prerequisites
+All port mappings are conflict-free. Ports marked with `*` have been customized from upstream defaults:
+
+| Category | Service | Description | Port(s) | Folder Guide |
+| :--- | :--- | :--- | :--- | :--- |
+| **Networking** | **Nginx Proxy Manager** | Reverse proxy, SSL cert automation & local routing | `80`, `81`, `443` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/nginx-proxy-manager/README.md) |
+| **Networking** | **Pi-hole** | Network-wide ad blocking and local DNS resolver | `53`, `8053`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/pihole/README.md) |
+| **Networking** | **Tailscale** | Mesh VPN node & subnet router | `host` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/tailscale/README.md) |
+| **Networking** | **Cloudflare Tunnel** | Zero-trust public egress without router port-forwarding | `none` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/cloudflare-tunnel/README.md) |
+| **Media** | **Jellyfin** | High-performance media server (movies, TV, music) | `8096`, `8920` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/jellyfin/README.md) |
+| **Media** | **qBittorrent (Standalone)** | Standalone download client with ThemePark Catppuccin | `8082`*, `6881` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qbittorrent/README.md) |
+| **Media** | **QUI** | Autobrr reactive web frontend for qBittorrent | `8083`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qui/README.md) |
+| **Media (Arr)** | **Radarr** | Movie management and automated downloading | `7878` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **Media (Arr)** | **Sonarr** | TV series management and automated downloading | `8989` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **Media (Arr)** | **Lidarr** | Music collection management | `8686` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **Media (Arr)** | **Prowlarr** | Universal indexer manager and tracker proxy | `9696` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **Media (Arr)** | **FlareSolverr** | Cloudflare challenge bypass proxy for indexers | `8191` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **Media (Arr)** | **qBittorrent (Arr)** | Dedicated download client for automated media pipeline | `8091`*, `6882`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **Media (Arr)** | **Seerr** | Media request and discovery platform for Jellyfin | `5055` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **Media (Arr)** | **Ombi** | Alternative request portal and user management | `3579` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |
+| **AI / Data** | **Ollama** | Local LLM runtime API (CPU-optimized for Ryzen 3600) | `11434` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/ai-knowledge/ollama-webui/README.md) |
+| **AI / Data** | **Open WebUI** | ChatGPT-style interface with RAG & model management | `3001`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/ai-knowledge/ollama-webui/README.md) |
+| **AI / Data** | **SearXNG + Redis** | Private metasearch engine aggregating 70+ engines | `8081`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/ai-knowledge/searxng/README.md) |
+| **AI / Data** | **Obsidian LiveSync** | Self-hosted CouchDB synchronization for Obsidian | `5984` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/ai-knowledge/obsidian-livesync/README.md) |
+| **Utility** | **Homepage** | Unified dashboard with real-time docker widgets | `3000` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/homepage/README.md) |
+| **Utility** | **Homarr** | Customizable drag-and-drop dashboard with icons | `7575` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/homarr/README.md) |
+| **Utility** | **NextExplorer** | Web-based file browser and remote server manager | `8085`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/nextexplorer/README.md) |
+| **Utility** | **Syncthing** | Continuous peer-to-peer file synchronization | `8384`, `22000` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/syncthing/README.md) |
+| **Utility** | **Firefox** | Sandboxed containerized browser over WebRTC | `3002`*, `3003`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/firefox/README.md) |
+| **Utility** | **Speedtest Tracker** | Automated bandwidth & latency benchmarking with graphs | `8084`*, `8444`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/speedtest-tracker/README.md) |
+| **Utility** | **iPerf3 Server** | LAN throughput and bandwidth testing | `5201` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/utilities/iperf3/README.md) |
+| **Gaming** | **Crafty Controller** | Minecraft server management panel + Playit tunnel | `8443`, `25565` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/gaming/crafty-minecraft/README.md) |
+| **Gaming** | **Redroid** | Android-in-a-container emulation via ADB/Scrcpy | `5555` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/gaming/redroid/README.md) |
+
+---
+
+## Quickstart Guide
+
+### 1. Prerequisites (Arch Linux)
 
 ```bash
-# Ensure Docker and Docker Compose plugin are installed
+# Install Docker and Docker Compose v2 plugin
 sudo pacman -S docker docker-compose
+
+# Enable and start Docker service
 sudo systemctl enable --now docker
 
-# Add your user to the docker group (log out and back in after)
+# Add your user to the docker group (log out and back in to apply)
 sudo usermod -aG docker $USER
-
-# Create the root directory structure
-mkdir -p ~/docker
 ```
 
-> [!NOTE]
-> **Portainer** is used for day-to-day container management and monitoring. Install it first if you don't already have it running — see [Portainer CE docs](https://docs.portainer.io/start/install-ce).
+### 2. Configure Environment
 
----
-
-### 1. Core Infrastructure
-
-<details>
-<summary>Nginx Proxy Manager</summary>
-
-**Purpose:** Reverse proxy with a web GUI for SSL certificates and domain routing.
-
-```yaml
-# ~/docker/npm/docker-compose.yml
-services:
-  npm:
-    image: jc21/nginx-proxy-manager:latest
-    container_name: nginx-proxy-manager
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "81:81"       # Admin panel
-      - "443:443"
-    volumes:
-      - ./data:/data
-      - ./letsencrypt:/etc/letsencrypt
-```
-
-**First run:** Access `http://192.168.0.x:81` — default credentials are `admin@example.com` / `changeme`.
-
-</details>
-
-<details>
-<summary>Pi-hole</summary>
-
-**Purpose:** DNS-level ad and tracker blocking for the entire network.
-
-```yaml
-# ~/docker/pihole/docker-compose.yml
-services:
-  pihole:
-    image: pihole/pihole:latest
-    container_name: pihole
-    restart: unless-stopped
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "8053:80"     # Web UI shifted from :80 to avoid NPM conflict
-    environment:
-      - TZ=${TZ:-Asia/Dhaka}
-      - WEBPASSWORD=${PIHOLE_PASSWORD}
-    volumes:
-      - ./etc-pihole:/etc/pihole
-      - ./etc-dnsmasq.d:/etc/dnsmasq.d
-```
-
-> [!TIP]
-> Set your router's DHCP DNS to this server's LAN IP so all devices benefit automatically.
-
-</details>
-
-<details>
-<summary>Tailscale</summary>
-
-**Purpose:** WireGuard-based mesh VPN for secure remote access to all services.
-
-```yaml
-# ~/docker/tailscale/docker-compose.yml
-services:
-  tailscale:
-    image: tailscale/tailscale:latest
-    container_name: tailscale
-    network_mode: host
-    restart: unless-stopped
-    cap_add:
-      - net_admin
-      - sys_module
-    volumes:
-      - ./state:/var/lib/tailscale
-      - /dev/net/tun:/dev/net/tun
-    environment:
-      - TS_AUTHKEY=${TAILSCALE_AUTH_KEY}
-      - TS_EXTRA_ARGS=--advertise-exit-node
-```
-
-</details>
-
-<details>
-<summary>Cloudflare Tunnel</summary>
-
-**Purpose:** Expose select services (e.g., Jellyfin) through Cloudflare's proxy without opening router ports.
-
-```yaml
-# ~/docker/cloudflared/docker-compose.yml
-services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-    restart: unless-stopped
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
-```
-
-> [!WARNING]
-> Only expose services you intend to be publicly accessible. Configure allowed hostnames in the Cloudflare Zero Trust dashboard.
-
-</details>
-
----
-
-### 2. AI and Knowledge Suite
-
-<details>
-<summary>Ollama + Open WebUI</summary>
-
-**Purpose:** Run LLMs locally on CPU and interact with them through a polished chat UI.
-
-```yaml
-# ~/docker/ollama/docker-compose.yml
-services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ./data:/root/.ollama
-
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    container_name: open-webui
-    restart: unless-stopped
-    ports:
-      - "3001:8080"   # Shifted from :8080 to avoid conflicts
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=${WEBUI_SECRET}
-    volumes:
-      - ./open-webui-data:/app/backend/data
-    depends_on:
-      - ollama
-```
-
-> [!TIP]
-> For stable CPU-only inference on a Ryzen 3600, prefer quantized models: `phi4-mini`, `llama3.2:3b`, or `gemma:2b`. Larger models (7B+) will run but may degrade other services.
-
-</details>
-
-<details>
-<summary>Obsidian LiveSync (CouchDB)</summary>
-
-**Purpose:** Real-time note synchronization across all Obsidian clients.
-
-```yaml
-# ~/docker/obsidian-livesync/docker-compose.yml
-services:
-  obsidian-livesync:
-    image: couchdb:3
-    container_name: obsidian-livesync
-    restart: unless-stopped
-    ports:
-      - "5984:5984"
-    environment:
-      - COUCHDB_USER=${COUCHDB_USER}
-      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
-    volumes:
-      - ./data:/opt/couchdb/data
-      - ./config:/opt/couchdb/etc/local.d
-```
-
-</details>
-
-<details>
-<summary>SearXNG</summary>
-
-**Purpose:** Self-hosted, privacy-respecting metasearch engine aggregating results from multiple providers.
-
-```yaml
-# ~/docker/searxng/docker-compose.yml
-services:
-  searxng:
-    image: searxng/searxng:latest
-    container_name: searxng
-    restart: unless-stopped
-    ports:
-      - "8081:8080"   # Shifted from :8080
-    volumes:
-      - ./settings:/etc/searxng
-    environment:
-      - SEARXNG_BASE_URL=http://192.168.0.x:8081/
-```
-
-</details>
-
----
-
-### 3. Media and Downloads
-
-<details>
-<summary>Jellyfin</summary>
-
-**Purpose:** Media server for movies, TV shows, and music with CPU-based transcoding.
-
-```yaml
-# ~/docker/jellyfin/docker-compose.yml
-services:
-  jellyfin:
-    image: lscr.io/linuxserver/jellyfin:latest
-    container_name: jellyfin
-    restart: unless-stopped
-    ports:
-      - "8096:8096"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ:-Asia/Dhaka}
-    volumes:
-      - ./config:/config
-      - ./media/movies:/data/movies
-      - ./media/tvshows:/data/tvshows
-      - ./media/music:/data/music
-```
-
-</details>
-
-<details>
-<summary>qBittorrent + QUI</summary>
-
-**Purpose:** Torrent client for Linux ISOs™ with a modern alternative web interface.
-
-```yaml
-# ~/docker/qbittorrent/docker-compose.yml
-services:
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
-    container_name: qbittorrent
-    restart: unless-stopped
-    ports:
-      - "8082:8080"   # Web UI shifted from :8080
-      - "6881:6881/tcp"
-      - "6881:6881/udp"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ:-Asia/Dhaka}
-    volumes:
-      - ./config:/config
-      - ./downloads:/downloads
-
-  qui:
-    image: nginx:alpine
-    container_name: qui-frontend
-    restart: unless-stopped
-    ports:
-      - "8083:80"
-    volumes:
-      - ./qui/html:/usr/share/nginx/html:ro
-```
-
-</details>
-
----
-
-### 4. Utility Services
-
-<details>
-<summary>Homepage</summary>
-
-**Purpose:** Unified dashboard to aggregate and organize links to all services.
-
-```yaml
-# ~/docker/homepage/docker-compose.yml
-services:
-  homepage:
-    image: ghcr.io/gethomepage/homepage:latest
-    container_name: homepage
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./config:/app/config
-      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker integration
-```
-
-</details>
-
-<details>
-<summary>NextExplorer</summary>
-
-**Purpose:** Modern web-based file browser for managing server files remotely.
-
-```yaml
-# ~/docker/nextexplorer/docker-compose.yml
-services:
-  nextexplorer:
-    image: filebrowser/filebrowser:latest
-    container_name: nextexplorer
-    restart: unless-stopped
-    ports:
-      - "8085:80"     # Shifted from :80
-    volumes:
-      - /home/${USER}:/srv       # Root browsing path
-      - ./database.db:/database.db
-      - ./config.json:/.filebrowser.json
-```
-
-</details>
-
-<details>
-<summary>Syncthing</summary>
-
-**Purpose:** Continuous file synchronization across devices, primarily for config files.
-
-```yaml
-# ~/docker/syncthing/docker-compose.yml
-services:
-  syncthing:
-    image: lscr.io/linuxserver/syncthing:latest
-    container_name: syncthing
-    restart: unless-stopped
-    ports:
-      - "8384:8384"   # Web UI
-      - "22000:22000/tcp"
-      - "22000:22000/udp"
-      - "21027:21027/udp"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ:-Asia/Dhaka}
-    volumes:
-      - ./config:/config
-      - ./data:/data/sync
-```
-
-</details>
-
-<details>
-<summary>Firefox</summary>
-
-**Purpose:** Standalone containerized browser accessible via web — useful when mobile browsers misbehave.
-
-```yaml
-# ~/docker/firefox/docker-compose.yml
-services:
-  firefox:
-    image: lscr.io/linuxserver/firefox:latest
-    container_name: firefox
-    restart: unless-stopped
-    ports:
-      - "3002:3000"   # Shifted from :3000 to avoid Homepage conflict
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ:-Asia/Dhaka}
-    volumes:
-      - ./config:/config
-    shm_size: "1gb"
-```
-
-</details>
-
-<details>
-<summary>Speedtest Tracker</summary>
-
-**Purpose:** Automated ISP speed tests with historical graphs to catch degradation.
-
-```yaml
-# ~/docker/speedtest-tracker/docker-compose.yml
-services:
-  speedtest-tracker:
-    image: lscr.io/linuxserver/speedtest-tracker:latest
-    container_name: speedtest-tracker
-    restart: unless-stopped
-    ports:
-      - "8084:80"     # Shifted from :80
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ:-Asia/Dhaka}
-      - DB_CONNECTION=sqlite
-    volumes:
-      - ./config:/config
-```
-
-</details>
-
----
-
-### 5. Gaming and Emulation
-
-<details>
-<summary>Crafty Controller</summary>
-
-**Purpose:** Web-based management panel for Minecraft server instances.
-
-```yaml
-# ~/docker/crafty/docker-compose.yml
-services:
-  crafty:
-    image: registry.gitlab.com/crafty-controller/crafty-4:latest
-    container_name: crafty
-    restart: unless-stopped
-    ports:
-      - "8443:8443"   # Admin panel (HTTPS)
-      - "25565:25565"  # Minecraft default
-    volumes:
-      - ./backups:/crafty/backups
-      - ./logs:/crafty/logs
-      - ./servers:/crafty/servers
-      - ./config:/crafty/app/config
-      - ./import:/crafty/import
-```
-
-</details>
-
-<details>
-<summary>Redroid</summary>
-
-**Purpose:** Android-in-a-container for running Android apps without a physical device.
-
-```yaml
-# ~/docker/redroid/docker-compose.yml
-services:
-  redroid:
-    image: redroid/redroid:latest
-    container_name: redroid
-    restart: unless-stopped
-    privileged: true
-    ports:
-      - "5555:5555"
-    volumes:
-      - ./data:/data
-```
-
-> [!CAUTION]
-> Redroid on Arch requires kernel modules `binder_linux` and `ashmem_linux`. Install `linux-zen` or the appropriate AUR modules, then load them:
-> ```bash
-> sudo modprobe binder_linux
-> sudo modprobe ashmem_linux
-> ```
-
-</details>
-
----
-
-## Routing and Access
-
-### Local DNS (via Nginx Proxy Manager)
-
-Map services to friendly hostnames through NPM proxy host entries:
-
-| Domain              | Target                   | SSL  |
-| ------------------- | ------------------------ | ---- |
-| `jellyfin.local`    | `192.168.0.x:8096`       | ✗    |
-| `search.local`      | `192.168.0.x:8081`       | ✗    |
-| `ai.local`          | `192.168.0.x:3001`       | ✗    |
-| `home.local`        | `192.168.0.x:3000`       | ✗    |
-| `files.local`       | `192.168.0.x:8085`       | ✗    |
-| `sync.local`        | `192.168.0.x:8384`       | ✗    |
-
-### Remote Access
-
-| Method             | Scope                                         |
-| ------------------ | --------------------------------------------- |
-| **Tailscale**      | Full access to all services via mesh VPN       |
-| **Cloudflare Tunnel** | Selective public access (e.g., Jellyfin only) |
-
----
-
-## Backup Strategy
-
-### What to Back Up
-
-| Priority | Data                         | Path                         |
-| -------- | ---------------------------- | ---------------------------- |
-| Critical | Compose files and `.env`     | `~/docker/*/docker-compose.yml`, `~/docker/*/.env` |
-| Critical | Pi-hole config               | `~/docker/pihole/etc-pihole/` |
-| High     | Obsidian sync database       | `~/docker/obsidian-livesync/data/` |
-| High     | Jellyfin metadata            | `~/docker/jellyfin/config/`  |
-| Medium   | Homepage config              | `~/docker/homepage/config/`  |
-| Medium   | NPM proxy host definitions   | `~/docker/npm/data/`         |
-
-### Quick Backup Script
+Copy the global configuration template and define your preferences:
 
 ```bash
-#!/bin/bash
-# ~/docker/backup.sh
-BACKUP_DIR="/path/to/backup/$(date +%Y-%m-%d)"
-mkdir -p "$BACKUP_DIR"
+cp .env.example .env
+```
 
-# Back up all compose files and env vars
-find ~/docker -name "docker-compose.yml" -o -name ".env" | \
-  tar czf "$BACKUP_DIR/compose-configs.tar.gz" -T -
+Review and configure:
+- `TZ` (e.g. `Asia/Dhaka`, `UTC`, `America/New_York`)
+- `PUID` and `PGID` (run `id` in your terminal, usually `1000`)
+- `DOCKER_ROOT` (base path for persistent container data)
+- Auth keys for Tailscale and Cloudflare Tunnel
 
-# Back up critical service data
-for svc in pihole obsidian-livesync jellyfin/config homepage/config npm/data; do
-  tar czf "$BACKUP_DIR/$(echo $svc | tr '/' '-').tar.gz" -C ~/docker "$svc"
+### 3. Deploying Stacks
+
+#### Option A: Deploying Individual Stacks (Recommended)
+Navigate to any service directory under `services/` and deploy:
+
+```bash
+# Example: Deploying Jellyfin
+cd services/media/jellyfin
+cp .env.example .env
+docker compose up -d
+
+# Example: Deploying the Arr Automation Stack
+cd ../arr-stack
+cp .env.example .env
+docker compose up -d
+```
+
+#### Option B: Deploying the Unified Master Compose
+To spin up all services simultaneously:
+
+```bash
+docker compose --env-file .env up -d
+```
+
+---
+
+## Storage & Hardlink Architecture (Trash-Guides Standard)
+
+To prevent duplicate file copying and enable instantaneous, zero-overhead hardlinks when torrent downloads complete, maintain a unified volume layout:
+
+```plaintext
+/data/
+├── torrents/
+│   ├── movies/
+│   ├── tv/
+│   └── music/
+└── media/
+    ├── movies/
+    ├── tvshows/
+    └── music/
+```
+
+Mount `/data` identically in `radarr`, `sonarr`, `lidarr`, and `qbittorrent-arr` so the Linux kernel can link files instantly across directories without rewriting disk sectors.
+
+---
+
+## Backup & Disaster Recovery
+
+### Automated Backup Script
+
+Save as `backup.sh` to create timestamped archives of all Compose definitions, configurations, and databases:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+BACKUP_DEST="/path/to/external_backup/$(date +%Y-%m-%d)"
+mkdir -p "$BACKUP_DEST"
+
+echo "=== Backing up Compose Definitions & Environments ==="
+tar --exclude='.git' -czf "$BACKUP_DEST/compose_configs.tar.gz" .
+
+echo "=== Backing up Critical Application Data ==="
+# Adjust paths to match your DOCKER_ROOT directory
+for svc in pihole/etc-pihole obsidian-livesync/data jellyfin/config homepage/config npm/data; do
+    if [ -d "$HOME/docker/$svc" ]; then
+        tar -czf "$BACKUP_DEST/$(echo "$svc" | tr '/' '-').tar.gz" -C "$HOME/docker" "$svc"
+    fi
 done
 
-echo "Backup complete: $BACKUP_DIR"
+echo "Backup complete! Stored in: $BACKUP_DEST"
 ```
 
 ---
 
-## Maintenance
+## Troubleshooting & Maintenance
 
-### Common Commands
-
-```bash
-# Pull latest images and recreate all stacks
-cd ~/docker && for d in */; do (cd "$d" && docker compose pull && docker compose up -d); done
-
-# View logs for a specific service
-docker logs -f --tail 100 <container_name>
-
-# Prune unused images and volumes
-docker system prune -af --volumes
-```
-
-### Update Workflow (via Portainer)
-
-1. Open **Portainer** → Stacks
-2. Select the stack to update
-3. Click **Pull and redeploy** → Confirm
-4. Verify the container is healthy in the container list
-
----
-
-## Troubleshooting
-
-| Symptom | Likely Cause | Fix |
-| ------- | ------------ | --- |
-| Service won't start | Port conflict with another container | Check the port map above; ensure no duplicates with `docker ps --format "{{.Names}}: {{.Ports}}"` |
-| Container exits immediately | Missing or malformed `.env` | Verify `.env` exists in the service directory and all required variables are set |
-| Permission denied on volumes | Ownership mismatch | Run `chown -R 1000:1000 ~/docker/<service>` |
-| Pi-hole DNS not working | Port 53 already bound by `systemd-resolved` | Disable it: `sudo systemctl disable --now systemd-resolved` |
-| Redroid fails to start | Missing kernel modules | Load `binder_linux` and `ashmem_linux`; consider switching to `linux-zen` |
-| Ollama OOM or sluggish | Model too large for 16 GB RAM | Use smaller quantized models (≤ 3B parameters) |
-| Can't access remotely | Tailscale not connected | Check `tailscale status`; re-authenticate if needed |
-
----
+| Issue | Likely Cause | Recommended Resolution |
+| :--- | :--- | :--- |
+| **Port 53 Bind Failure** | `systemd-resolved` is listening on port 53 | Set `DNSStubListener=no` in `/etc/systemd/resolved.conf` and restart the service |
+| **Arr Stack Hardlink Failed** | Different volume mount points between Arr and qBittorrent | Ensure both containers share the unified `/data` root mount |
+| **Ollama Memory Pressure** | Large model (7B+) exceeding available 16 GB RAM | Use quantized models (`llama3.2:3b`, `phi4-mini`, `gemma2:2b`) |
+| **Redroid Won't Boot** | Host missing Android kernel modules | Load modules: `sudo modprobe binder_linux ashmem_linux` (switch to `linux-zen` kernel if needed) |
+| **Remote Access Unavailable** | Tailscale route not approved | Open [Tailscale Admin](https://login.tailscale.com/admin/machines) > Device > Edit route settings > Enable subnet |
+| **Permission Denied in Volume** | Ownership does not match `PUID:PGID` | Set correct ownership: `sudo chown -R 1000:1000 ~/docker/<service>` |
