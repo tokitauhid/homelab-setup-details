@@ -1,8 +1,8 @@
 services:
-  # PipeWire Network Audio Receiver (RTP + PulseAudio TCP for Linux PC & Laptop)
-  truenas-pulse:
-    image: alpine:latest
-    container_name: truenas-pulse
+  # AirPlay Receiver (for Apple devices & Linux PipeWire)
+  airplay:
+    image: mikebrady/shairport-sync:latest
+    container_name: truenas-airplay
     restart: unless-stopped
     network_mode: host
     ipc: host
@@ -10,33 +10,24 @@ services:
       - SYS_NICE
     devices:
       - /dev/snd:/dev/snd
+    group_add:
+      - 29
     environment:
-      - TZ=${TZ:-Asia/Dhaka}
-      - HOME=/tmp
-      - XDG_RUNTIME_DIR=/tmp/pw
-      - PIPEWIRE_RUNTIME_DIR=/tmp/pw
-      - XDG_STATE_HOME=/tmp/pw
+      - TZ=Asia/Dhaka
+      - ENABLE_AVAHI=0
     volumes:
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon:/var/run/avahi-daemon
       - ${AUDIO_CONFIG_DIR:-.}/asound.conf:/etc/asound.conf:ro
-      - ${AUDIO_CONFIG_DIR:-.}/pipewire/10-truenas-audio.conf:/etc/pipewire/pipewire.conf.d/10-truenas-audio.conf:ro
-      - ${AUDIO_CONFIG_DIR:-.}/pipewire/10-tcp.conf:/etc/pipewire/pipewire-pulse.conf.d/10-tcp.conf:ro
     command:
-      - sh
-      - -c
-      - |
-        if ! command -v pipewire >/dev/null 2>&1; then
-          apk add --no-cache pipewire pipewire-alsa pipewire-pulse pipewire-tools wireplumber su-exec
-        fi
-        mkdir -p /tmp/pw && chown -R ${PUID:-568}:${AUDIO_GID:-29} /tmp/pw && chmod 700 /tmp/pw
-        su-exec ${PUID:-568}:${AUDIO_GID:-29} pipewire &
-        PW_PID=$$!
-        sleep 1
-        su-exec ${PUID:-568}:${AUDIO_GID:-29} wireplumber -p policy &
-        su-exec ${PUID:-568}:${AUDIO_GID:-29} pipewire-pulse &
-        wait "$$PW_PID"
+      - -a
+      - ${SPEAKER_NAME:-TrueNAS-Speakers}
+      - --
+      - -d
+      - shared_speakers
 
   # DLNA / UPnP Renderer (for Android: Symfonium, BubbleUPnP, Jellyfin)
-  truenas-dlna:
+  dlna:
     image: giof71/gmrender-resurrect:latest
     container_name: truenas-dlna
     restart: unless-stopped
@@ -59,7 +50,7 @@ services:
       - ${AUDIO_CONFIG_DIR:-.}/asound.conf:/etc/asound.conf:ro
 
   # Spotify Connect Receiver
-  truenas-spotify:
+  spotify:
     image: ghcr.io/devgianlu/go-librespot:latest
     container_name: truenas-spotify
     restart: unless-stopped
