@@ -48,6 +48,7 @@ A modular, CPU-optimized, fully self-hosted home server architecture built on va
    ├── [DNS & Security] ─────► Pi-hole (:53, :8053) [Local DNS Sinkhole]          │
    │                                                                               │
    ├── [Media Suite] ────────► Jellyfin (:8096) ── qBittorrent (:8082) ── QUI (:8083)
+   │                           Audio Stack: PulseAudio TCP (:4713) ── DLNA ── Spotify Connect
    │                                                                               │
    ├── [Arr Pipeline] ───────► Radarr (:7878) ── Sonarr (:8989) ── Lidarr (:8686) │
    │                           Prowlarr (:9696) ── FlareSolverr (:8191)            │
@@ -87,6 +88,7 @@ homelab-setup-details/
     │   └── cloudflare-tunnel/                    # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/cloudflare-tunnel/README.md)
     │
     ├── media/
+    │   ├── audio-stack/                          # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/audio-stack/README.md)
     │   ├── jellyfin/                             # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/jellyfin/README.md)
     │   ├── qbittorrent/                          # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qbittorrent/README.md)
     │   ├── qui/                                  # [Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qui/README.md)
@@ -124,6 +126,7 @@ All port mappings are conflict-free. Ports marked with `*` have been customized 
 | **Networking** | **Tailscale** | Mesh VPN node & subnet router | `host` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/tailscale/README.md) |
 | **Networking** | **Cloudflare Tunnel** | Zero-trust public egress without router port-forwarding | `none` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/networking/cloudflare-tunnel/README.md) |
 | **Media** | **Jellyfin** | High-performance media server (movies, TV, music) | `8096`, `8920` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/jellyfin/README.md) |
+| **Media (Audio)** | **TrueNAS Audio Stack** | PulseAudio TCP (`4713`), DLNA Renderer, & Spotify Connect sharing ALSA `dmix` | `4713`, `host` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/audio-stack/README.md) |
 | **Media** | **qBittorrent (Standalone)** | Standalone download client with ThemePark Catppuccin | `8082`*, `6881` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qbittorrent/README.md) |
 | **Media** | **QUI** | Autobrr reactive web frontend for qBittorrent | `8083`* | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/qui/README.md) |
 | **Media (Arr)** | **Radarr** | Movie management and automated downloading | `7878` | [View Guide](file:///home/tokit/Projects/homelab-setup-details/services/media/arr-stack/README.md) |

@@ -1,0 +1,19 @@
+device_name: "TrueNAS-Speakers"
+device_type: "speaker"
+audio_backend: "alsa"
+audio_device: "shared_speakers"
+audio_buffer_time: 200000
+bitrate: 320
+initial_volume: 80
+zeroconf_enabled: true
+zeroconf_backend: "avahi"
+zeroconf_interfaces_to_advertise:
+  - enp34s0
+credentials:
+  type: "zeroconf"
+  zeroconf:
+    persist_credentials: true
+cache:
+  enabled: true
+  dir: "/config/cache"
+  size_limit: "500MB"
