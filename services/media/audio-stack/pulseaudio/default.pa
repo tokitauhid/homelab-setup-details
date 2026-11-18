@@ -1,3 +1,0 @@
-load-module module-alsa-sink device=shared_speakers sink_name=truenas_speakers rate=48000 channels=2 format=s16le tsched=0 fragments=4 fragment_size=4096 sink_properties="device.description=TrueNAS-Speakers"
-load-module module-native-protocol-tcp port=4713 auth-ip-acl=127.0.0.1;192.168.0.0/24 auth-anonymous=1 auth-cookie-enabled=0
-set-default-sink truenas_speakers

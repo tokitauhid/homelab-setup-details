@@ -1,5 +1,5 @@
 services:
-  # PulseAudio TCP Receiver (low-latency audio sink for Linux PC & Laptop)
+  # PipeWire Network Audio Receiver (RTP + PulseAudio TCP for Linux PC & Laptop)
   truenas-pulse:
     image: alpine:latest
     container_name: truenas-pulse
@@ -13,20 +13,27 @@ services:
     environment:
       - TZ=${TZ:-Asia/Dhaka}
       - HOME=/tmp
-      - PULSE_RUNTIME_PATH=/tmp/pulse
-      - PULSE_STATE_PATH=/tmp/pulse
+      - XDG_RUNTIME_DIR=/tmp/pw
+      - PIPEWIRE_RUNTIME_DIR=/tmp/pw
+      - XDG_STATE_HOME=/tmp/pw
     volumes:
       - ${AUDIO_CONFIG_DIR:-.}/asound.conf:/etc/asound.conf:ro
-      - ${AUDIO_CONFIG_DIR:-.}/pulseaudio/default.pa:/etc/pulse/default.pa:ro
+      - ${AUDIO_CONFIG_DIR:-.}/pipewire/10-truenas-audio.conf:/etc/pipewire/pipewire.conf.d/10-truenas-audio.conf:ro
+      - ${AUDIO_CONFIG_DIR:-.}/pipewire/10-tcp.conf:/etc/pipewire/pipewire-pulse.conf.d/10-tcp.conf:ro
     command:
       - sh
       - -c
       - |
-        if ! command -v pulseaudio >/dev/null 2>&1; then
-          apk add --no-cache pulseaudio pulseaudio-alsa su-exec
+        if ! command -v pipewire >/dev/null 2>&1; then
+          apk add --no-cache pipewire pipewire-alsa pipewire-pulse pipewire-tools wireplumber su-exec
         fi
-        mkdir -p /tmp/pulse && chown -R ${PUID:-568}:${AUDIO_GID:-29} /tmp/pulse
-        exec nice -n -10 su-exec ${PUID:-568}:${AUDIO_GID:-29} pulseaudio -n -F /etc/pulse/default.pa --exit-idle-time=-1 --disallow-exit --disable-shm=yes --resample-method=speex-float-5 --daemonize=no --log-target=stderr
+        mkdir -p /tmp/pw && chown -R ${PUID:-568}:${AUDIO_GID:-29} /tmp/pw && chmod 700 /tmp/pw
+        su-exec ${PUID:-568}:${AUDIO_GID:-29} pipewire &
+        PW_PID=$$!
+        sleep 1
+        su-exec ${PUID:-568}:${AUDIO_GID:-29} wireplumber -p policy &
+        su-exec ${PUID:-568}:${AUDIO_GID:-29} pipewire-pulse &
+        wait "$$PW_PID"
 
   # DLNA / UPnP Renderer (for Android: Symfonium, BubbleUPnP, Jellyfin)
   truenas-dlna:
