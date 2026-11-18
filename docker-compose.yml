@@ -130,7 +130,7 @@ services:
           apk add --no-cache pulseaudio pulseaudio-alsa su-exec
         fi
         mkdir -p /tmp/pulse && chown -R ${AUDIO_PUID:-568}:${AUDIO_GID:-29} /tmp/pulse
-        exec su-exec ${AUDIO_PUID:-568}:${AUDIO_GID:-29} pulseaudio -n -F /etc/pulse/default.pa --exit-idle-time=-1 --disallow-exit --disable-shm=yes --daemonize=no --log-target=stderr
+        exec nice -n -10 su-exec ${AUDIO_PUID:-568}:${AUDIO_GID:-29} pulseaudio -n -F /etc/pulse/default.pa --exit-idle-time=-1 --disallow-exit --disable-shm=yes --resample-method=speex-float-5 --daemonize=no --log-target=stderr
 
   truenas-dlna:
     image: giof71/gmrender-resurrect:latest

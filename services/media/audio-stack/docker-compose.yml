@@ -26,7 +26,7 @@ services:
           apk add --no-cache pulseaudio pulseaudio-alsa su-exec
         fi
         mkdir -p /tmp/pulse && chown -R ${PUID:-568}:${AUDIO_GID:-29} /tmp/pulse
-        exec su-exec ${PUID:-568}:${AUDIO_GID:-29} pulseaudio -n -F /etc/pulse/default.pa --exit-idle-time=-1 --disallow-exit --disable-shm=yes --daemonize=no --log-target=stderr
+        exec nice -n -10 su-exec ${PUID:-568}:${AUDIO_GID:-29} pulseaudio -n -F /etc/pulse/default.pa --exit-idle-time=-1 --disallow-exit --disable-shm=yes --resample-method=speex-float-5 --daemonize=no --log-target=stderr
 
   # DLNA / UPnP Renderer (for Android: Symfonium, BubbleUPnP, Jellyfin)
   truenas-dlna:

@@ -17,7 +17,7 @@ A multi-protocol audio stack sharing the TrueNAS host sound card (`ALC892 Analog
 ## Architecture Notes
 
 - **Concurrent Audio Sharing (`asound.conf`):** All three containers share `/dev/snd` with `ipc: host` and `group_add: [29]` (`audio`). ALSA `dmix_generic` (`ipc_key 1024`, `ipc_perm 0666`, `ipc_gid 29`) exposes `pcm.shared_speakers` and overrides `pcm.!default`, allowing simultaneous playback without `Device or resource busy`.
-- **Low-Latency Desktop Audio (`truenas-pulse`):** Uses `module-alsa-sink device=shared_speakers tsched=0 fragments=2 fragment_size=4096` (~46 ms sink latency) and `module-native-protocol-tcp port=4713 auth-ip-acl=127.0.0.1;192.168.0.0/24 auth-anonymous=1 auth-cookie-enabled=0`.
+- **Low-Latency Desktop Audio (`truenas-pulse`):** Uses `module-alsa-sink device=shared_speakers rate=48000 tsched=0 fragments=4 fragment_size=4096` (~85 ms sink latency, matching PipeWire's native 48 kHz rate without resampling) and `module-native-protocol-tcp port=4713 auth-ip-acl=127.0.0.1;192.168.0.0/24 auth-anonymous=1 auth-cookie-enabled=0`.
 - **Host Avahi Integration:** `go-librespot` mounts `/var/run/dbus` and `/var/run/avahi-daemon` from the host so mDNS advertisements use the host Avahi daemon cleanly.
 - **Boot Unmute:** Ensure the TrueNAS card `Master` mixer channel is unmuted at `100%` on boot (`amixer -c 1 sset Master 100% unmute`).
 
@@ -25,18 +25,19 @@ A multi-protocol audio stack sharing the TrueNAS host sound card (`ALC892 Analog
 
 ## Linux Client Setup (PipeWire)
 
-Create `~/.config/pipewire/pipewire.conf.d/50-truenas-pulse.conf` on each Linux client (use `pulse.latency = 40` on wired Ethernet or `80` on Wi-Fi):
+Create `~/.config/pipewire/pipewire.conf.d/50-truenas-pulse.conf` on each Linux client (use `pulse.latency = 100` on wired Ethernet or `120` on Wi-Fi):
 
 ```conf
 context.modules = [
     { name = libpipewire-module-pulse-tunnel
       args = {
           pulse.server.address = "tcp:192.168.0.225:4713"
-          pulse.latency = 40
+          pulse.latency = 100
           reconnect.interval.ms = 3000
           tunnel.mode = "sink"
           node.name = "pulse_tunnel.truenas"
           node.description = "TrueNAS-Speakers"
+          node.latency = "512/48000"
           stream.props = {
               device.icon-name = "audio-speakers"
           }
