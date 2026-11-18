@@ -25,4 +25,27 @@ A multi-protocol audio stack sharing the TrueNAS host sound card (`ALC892 Analog
 ## Linux Client Setup (PipeWire AirPlay Discovery)
 
 - **Fedora:** Ships `/usr/share/pipewire/pipewire.conf.d/50-raop.conf` (`libpipewire-module-raop-discover`) enabled by default with `avahi-daemon`.
-- **Arch (`omarchy`):** Install `pipewire-zeroconf` + `avahi`, enable `avahi-daemon`, and symlink `/usr/share/pipewire/pipewire.conf.avail/50-raop.conf` into `~/.config/pipewire/pipewire.conf.d/50-raop.conf`.
+- **Arch (`omarchy`):** Install `pipewire-zeroconf` + `avahi` and enable `avahi-daemon`.
+- **Low-Latency Tuning (`~/.config/pipewire/pipewire.conf.d/50-raop.conf`):** Override `raop-discover` with `raop.latency.ms = 200` to cut AirPlay latency from `1750 ms` down to `~500 ms`:
+
+```conf
+context.properties = {
+    module.raop = false
+}
+
+context.modules = [
+    { name = libpipewire-module-raop-discover
+      args = {
+          stream.rules = [
+              { matches = [ { raop.ip = "~.*" } ]
+                actions = {
+                    create-stream = {
+                        raop.latency.ms = 200
+                    }
+                }
+              }
+          ]
+      }
+    }
+]
+```
