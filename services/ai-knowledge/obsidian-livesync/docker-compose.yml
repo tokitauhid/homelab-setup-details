@@ -1,0 +1,21 @@
+services:
+  obsidian-livesync:
+    image: couchdb:3
+    container_name: obsidian-livesync
+    restart: unless-stopped
+    ports:
+      - "${COUCHDB_PORT:-5984}:5984/tcp"
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-changethispassword}
+      - ERL_FLAGS=-setcookie couchdb_secret_cookie
+    volumes:
+      - ${COUCHDB_DATA_DIR:-./data}:/opt/couchdb/data
+      - ${COUCHDB_CONFIG_DIR:-./config}:/opt/couchdb/etc/local.d
+    networks:
+      - obsidian_network
+
+networks:
+  obsidian_network:
+    name: ${OBSIDIAN_NETWORK_NAME:-obsidian_network}
+    driver: bridge

@@ -1,0 +1,32 @@
+services:
+  redis:
+    image: redis:alpine
+    container_name: searxng-redis
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no
+    volumes:
+      - ${SEARXNG_REDIS_DIR:-./redis-data}:/data
+    networks:
+      - searxng_network
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "${SEARXNG_PORT:-8081}:8080/tcp"
+    environment:
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8081/}
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET_KEY:-generate_a_random_32_byte_secret_key}
+      - SEARXNG_REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ${SEARXNG_CONFIG_DIR:-./etc-searxng}:/etc/searxng
+    depends_on:
+      - redis
+    networks:
+      - searxng_network
+
+networks:
+  searxng_network:
+    name: ${SEARXNG_NETWORK_NAME:-searxng_network}
+    driver: bridge

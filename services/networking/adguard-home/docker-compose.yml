@@ -1,0 +1,21 @@
+services:
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    restart: unless-stopped
+    ports:
+      - "${ADGUARD_DNS_PORT:-53}:53/tcp"
+      - "${ADGUARD_DNS_PORT:-53}:53/udp"
+      - "${ADGUARD_WEB_PORT:-8080}:80/tcp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${ADGUARD_CONF_DIR:-./conf}:/opt/adguardhome/conf
+      - ${ADGUARD_WORK_DIR:-./work}:/opt/adguardhome/work
+    networks:
+      - adguard_network
+
+networks:
+  adguard_network:
+    name: ${ADGUARD_NETWORK_NAME:-adguard_network}
+    driver: bridge

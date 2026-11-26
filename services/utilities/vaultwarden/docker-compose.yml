@@ -1,0 +1,22 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    user: "${VAULTWARDEN_UID:-568}:${VAULTWARDEN_GID:-568}"
+    restart: unless-stopped
+    ports:
+      - "${VAULTWARDEN_PORT:-8222}:80/tcp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+      - SIGNUPS_ALLOWED=${VAULTWARDEN_SIGNUPS_ALLOWED:-false}
+      - WEBSOCKET_ENABLED=true
+      - ROCKET_TLS={certs="/data/ssl/cert.pem",key="/data/ssl/key.pem"}
+    volumes:
+      - ${VAULTWARDEN_DATA_DIR:-/mnt/main_pool/Docker_Configs/vaultwarden}:/data
+    networks:
+      - vaultwarden_network
+
+networks:
+  vaultwarden_network:
+    name: ${VAULTWARDEN_NETWORK_NAME:-vaultwarden_network}
+    driver: bridge

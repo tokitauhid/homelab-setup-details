@@ -1,0 +1,26 @@
+services:
+  vscode:
+    image: lscr.io/linuxserver/vscode:latest
+    container_name: vscode
+    restart: unless-stopped
+    shm_size: ${VSCODE_SHM_SIZE:-1gb}
+    ports:
+      - "${VSCODE_HTTP_PORT:-3020}:3000/tcp"
+      - "${VSCODE_HTTPS_PORT:-3021}:3001/tcp"
+    environment:
+      - PUID=${VSCODE_PUID:-3000}
+      - PGID=${VSCODE_PGID:-3000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - CUSTOM_USER=${VSCODE_USER:-user}
+      - PASSWORD=${VSCODE_PASSWORD:-changeme}
+      - SUDO_PASSWORD=${VSCODE_SUDO_PASSWORD:-changeme}
+    volumes:
+      - ${VSCODE_CONFIG_DIR:-./config}:/config
+      - ${VSCODE_WORKSPACE_DIR:-./workspace}:/config/workspace
+    networks:
+      - vscode_network
+
+networks:
+  vscode_network:
+    name: ${VSCODE_NETWORK_NAME:-vscode_network}
+    driver: bridge

@@ -1,0 +1,35 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434/tcp"
+    environment:
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+    volumes:
+      - ${OLLAMA_DATA_DIR:-./ollama-data}:/root/.ollama
+    networks:
+      - ai_network
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-3001}:8080/tcp"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-generate_a_random_32_byte_secret_key}
+    volumes:
+      - ${WEBUI_DATA_DIR:-./webui-data}:/app/backend/data
+    depends_on:
+      - ollama
+    networks:
+      - ai_network
+
+networks:
+  ai_network:
+    name: ${AI_NETWORK_NAME:-ai_network}
+    driver: bridge

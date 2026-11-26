@@ -1,0 +1,29 @@
+# Environment variables & secrets
+.env
+*.env
+!.env.example
+secrets/
+
+# Runtime and data directories
+data/
+config/
+logs/
+*.log
+*.pid
+
+# SSL certificates and keys
+letsencrypt/
+*.key
+*.crt
+*.pem
+
+# Database files & local dumps
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary & system files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak

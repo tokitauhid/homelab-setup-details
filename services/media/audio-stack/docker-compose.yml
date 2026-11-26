@@ -1,0 +1,70 @@
+services:
+  # AirPlay Receiver (for Apple devices & Linux PipeWire)
+  airplay:
+    image: mikebrady/shairport-sync:latest
+    container_name: truenas-airplay
+    restart: unless-stopped
+    network_mode: host
+    ipc: host
+    cap_add:
+      - SYS_NICE
+    devices:
+      - /dev/snd:/dev/snd
+    group_add:
+      - 29
+    environment:
+      - TZ=Asia/Dhaka
+      - ENABLE_AVAHI=0
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon:/var/run/avahi-daemon
+      - ${AUDIO_CONFIG_DIR:-.}/asound.conf:/etc/asound.conf:ro
+    command:
+      - -a
+      - ${SPEAKER_NAME:-TrueNAS-Speakers}
+      - --
+      - -d
+      - shared_speakers
+
+  # DLNA / UPnP Renderer (for Android: Symfonium, BubbleUPnP, Jellyfin)
+  dlna:
+    image: giof71/gmrender-resurrect:latest
+    container_name: truenas-dlna
+    restart: unless-stopped
+    network_mode: host
+    ipc: host
+    devices:
+      - /dev/snd:/dev/snd
+    environment:
+      - USER_MODE=yes
+      - PUID=${PUID:-568}
+      - PGID=${PGID:-568}
+      - AUDIO_GID=${AUDIO_GID:-29}
+      - TZ=${TZ:-Asia/Dhaka}
+      - FRIENDLY_NAME=${SPEAKER_NAME:-TrueNAS-Speakers}
+      - CARD_NAME=${ALSA_CARD_NAME:-Generic}
+      - GSTOUT_AUDIOSINK=alsasink
+      - NETWORK_INTERFACE=${NETWORK_INTERFACE:-enp34s0}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/gmrender:/config
+      - ${AUDIO_CONFIG_DIR:-.}/asound.conf:/etc/asound.conf:ro
+
+  # Spotify Connect Receiver
+  spotify:
+    image: ghcr.io/devgianlu/go-librespot:latest
+    container_name: truenas-spotify
+    restart: unless-stopped
+    network_mode: host
+    ipc: host
+    user: ${PUID:-568}:${PGID:-568}
+    group_add:
+      - ${AUDIO_GID:-29}
+    devices:
+      - /dev/snd:/dev/snd
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${DOCKER_ROOT:-~/docker}/go-librespot:/config
+      - /var/run/dbus:/var/run/dbus
+      - /var/run/avahi-daemon:/var/run/avahi-daemon
+      - ${AUDIO_CONFIG_DIR:-.}/asound.conf:/etc/asound.conf:ro

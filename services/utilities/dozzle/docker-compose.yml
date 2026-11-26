@@ -1,0 +1,16 @@
+services:
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    ports:
+      - "${DOZZLE_PORT:-8888}:8080/tcp"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - dozzle_network
+
+networks:
+  dozzle_network:
+    name: ${DOZZLE_NETWORK_NAME:-dozzle_network}
+    driver: bridge

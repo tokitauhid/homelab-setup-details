@@ -1,0 +1,27 @@
+services:
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"     # DHCP service if enabled
+      - "${PIHOLE_WEB_PORT:-8053}:80/tcp"
+      - "${PIHOLE_SSL_PORT:-4443}:443/tcp"
+    environment:
+      TZ: ${TZ:-Asia/Dhaka}
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD:-}
+      WEBPASSWORD: ${PIHOLE_PASSWORD:-}
+      DNSMASQ_USER: pihole
+      FTL_CMD: no-daemon
+    volumes:
+      - ${PIHOLE_CONFIG_DIR:-./etc-pihole}:/etc/pihole
+      - ${DNSMASQ_CONFIG_DIR:-./etc-dnsmasq.d}:/etc/dnsmasq.d
+    networks:
+      - pihole_network
+
+networks:
+  pihole_network:
+    name: ${PIHOLE_NETWORK_NAME:-pihole_network}
+    driver: bridge

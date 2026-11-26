@@ -1,0 +1,16 @@
+services:
+  iperf3-server:
+    image: networkstatic/iperf3:latest
+    container_name: iperf3-server
+    restart: unless-stopped
+    command: -s
+    ports:
+      - "${IPERF_PORT:-5201}:5201/tcp"
+      - "${IPERF_PORT:-5201}:5201/udp"
+    networks:
+      - iperf_network
+
+networks:
+  iperf_network:
+    name: ${IPERF_NETWORK_NAME:-iperf_network}
+    driver: bridge

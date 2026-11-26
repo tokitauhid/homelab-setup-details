@@ -1,0 +1,166 @@
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    ports:
+      - "${RADARR_PORT:-7878}:7878/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${RADARR_CONFIG_DIR:-./config/radarr}:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - arr_network
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    ports:
+      - "${SONARR_PORT:-8989}:8989/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${SONARR_CONFIG_DIR:-./config/sonarr}:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - arr_network
+
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    restart: unless-stopped
+    ports:
+      - "${LIDARR_PORT:-8686}:8686/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${LIDARR_CONFIG_DIR:-./config/lidarr}:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - arr_network
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    ports:
+      - "${PROWLARR_PORT:-9696}:9696/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${PROWLARR_CONFIG_DIR:-./config/prowlarr}:/config
+    networks:
+      - arr_network
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    ports:
+      - "${FLARESOLVERR_PORT:-8191}:8191/tcp"
+    environment:
+      - LOG_LEVEL=${FLARESOLVERR_LOG_LEVEL:-info}
+      - TZ=${TZ:-Asia/Dhaka}
+    networks:
+      - arr_network
+
+  qbittorrent-arr:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent-arr
+    restart: unless-stopped
+    ports:
+      - "${QBIT_ARR_PORT:-6882}:6882/tcp"
+      - "${QBIT_ARR_PORT:-6882}:6882/udp"
+      - "${QBIT_ARR_WEBUI_PORT:-8091}:8080/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+      - WEBUI_PORT=8080
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:qbittorrent
+      - TP_THEME=${TP_THEME:-catppuccin-mocha}
+      - TP_COMMUNITY_THEME=true
+    volumes:
+      - ${QBIT_ARR_CONFIG_DIR:-./config/qbittorrent}:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - arr_network
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
+    restart: unless-stopped
+    ports:
+      - "${SEERR_PORT:-5055}:5055/tcp"
+    environment:
+      - LOG_LEVEL=${SEERR_LOG_LEVEL:-info}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${SEERR_CONFIG_DIR:-./config/seerr}:/app/config
+    networks:
+      - arr_network
+
+  ombi:
+    image: lscr.io/linuxserver/ombi:latest
+    container_name: ombi
+    restart: unless-stopped
+    ports:
+      - "${OMBI_PORT:-3579}:3579/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${OMBI_CONFIG_DIR:-./config/ombi}:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - arr_network
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: unless-stopped
+    ports:
+      - "${BAZARR_PORT:-6767}:6767/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${BAZARR_CONFIG_DIR:-./config/bazarr}:/config
+      - ${DATA_ROOT:-/data}:/data
+    networks:
+      - arr_network
+
+  profilarr:
+    image: ghcr.io/dictionarry-hub/profilarr:latest
+    container_name: profilarr
+    restart: unless-stopped
+    ports:
+      - "${PROFILARR_PORT:-6868}:6868/tcp"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - UMASK=022
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${PROFILARR_CONFIG_DIR:-./config/profilarr}:/config
+    networks:
+      - arr_network
+
+networks:
+  arr_network:
+    name: ${ARR_NETWORK_NAME:-arr_default}
+    driver: bridge

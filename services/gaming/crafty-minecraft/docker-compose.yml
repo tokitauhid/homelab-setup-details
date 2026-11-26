@@ -1,0 +1,32 @@
+services:
+  crafty:
+    image: registry.gitlab.com/crafty-controller/crafty-4:latest
+    container_name: crafty
+    restart: unless-stopped
+    ports:
+      - "${CRAFTY_HTTPS_PORT:-8443}:8443/tcp"
+      - "${CRAFTY_MC_PORT:-25565}:25565/tcp"
+      - "${CRAFTY_BEDROCK_PORT:-19132}:19132/udp"
+    environment:
+      - TZ=${TZ:-Asia/Dhaka}
+    volumes:
+      - ${CRAFTY_CONFIG_DIR:-./config}:/crafty/app/config
+      - ${CRAFTY_SERVERS_DIR:-./servers}:/crafty/servers
+      - ${CRAFTY_BACKUPS_DIR:-./backups}:/crafty/backups
+      - ${CRAFTY_LOGS_DIR:-./logs}:/crafty/logs
+      - ${CRAFTY_IMPORT_DIR:-./import}:/crafty/import
+    networks:
+      - minecraft_network
+
+  playit:
+    image: ghcr.io/playit-cloud/playit-agent:1.0
+    container_name: minecraft-playit
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - SECRET_KEY=${PLAYIT_SECRET_KEY:-}
+
+networks:
+  minecraft_network:
+    name: ${MINECRAFT_NETWORK_NAME:-minecraft_network}
+    driver: bridge
